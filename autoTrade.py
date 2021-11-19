@@ -17,7 +17,7 @@ def post_message(token, channel, text):
         data={"channel": channel,"text": text}
     )
 
-myToken = "xoxb-2262625682512-2251596022705-2uMnCwMegLnHMV8LSvEmu3RJ"
+myToken = "xoxb-2262625682512-2251596022705-LmSFD8f8dzrNVAsY6h7DrWje"
 def dbgout(message):
     """인자로 받은 문자열을 파이썬 셸과 슬랙으로 동시에 출력한다."""
     print(datetime.now().strftime('[%m/%d %H:%M:%S]'), message)
@@ -136,7 +136,6 @@ def get_top_etf(qty,qty2):
             stockKind = objCodeMgr.GetStockSectionKind(code)
             if  stockKind == 10 or stockKind == 12 :
                 ETFList.append(code)
-
         etfTopList = [x for x in df_list if x not in ([x for x in (df_list+ETFList) if x not in ETFList])]
         return etfTopList
     except Exception as ex:
@@ -227,6 +226,7 @@ def buy_etf(code):
     """인자로 받은 종목을 최유리 지정가 FOK 조건으로 매수한다."""
     try:
         global bought_list      # 함수 내에서 값 변경을 하기 위해 global로 지정
+        global consider_list    # consider
         if code in bought_list: # 매수 완료 종목이면 더 이상 안 사도록 함수 종료
             #printlog('code:', code, 'in', bought_list)
             return False
@@ -245,6 +245,7 @@ def buy_etf(code):
             and current_price > ma10_price:
             printlog(stock_name + '(' + str(code) + ') ' + str(buy_qty) +
                 'EA : ' + str(current_price) + ' meets the buy condition!`')
+            consider_list.append(stock_name)    # consider
             cpTradeUtil.TradeInit()
             acc = cpTradeUtil.AccountNumber[0]      # 계좌번호
             accFlag = cpTradeUtil.GoodsList(acc, 1) # -1:전체,1:주식,2:선물/옵션
@@ -314,8 +315,10 @@ if __name__ == '__main__':
         # 주식
         # symbol_list = ['A005930', 'A000660', 'A035420', 'A051910', 'A207940', 'A035720', 'A005935', 'A006400', 'A005380', 'A000270', 'A323410', 'A068270', 'A005490', 'A012330', 'A105560', 'A259960', 'A096770', 'A028260', 'A066570', 'A055550', 'A302440', 'A051900', 'A034730', 'A015760', 'A003550', 'A032830', 'A036570', 'A086790', 'A352820', 'A034020']
         # ETF
-        symbol_list = get_top_etf(1000,1000)
+        print("try")
+        # symbol_list = get_top_etf(300,300)
         bought_list = []     # 매수 완료된 종목 리스트
+        consider_list = []  # consider
         printlog('check_creon_system() :', check_creon_system())  # 크레온 접속 점검
         stocks = get_stock_balance('ALL')      # 보유한 모든 종목 조회
         total_cash = int(get_current_cash())   # 100% 증거금 주문 가능 금액 조회
@@ -329,6 +332,8 @@ if __name__ == '__main__':
         soldout = False
 
         while True:
+            print("while")
+            symbol_list = get_top_etf(300,300)
             t_now = datetime.now()
             t_9 = t_now.replace(hour=9, minute=0, second=0, microsecond=0)
             t_start = t_now.replace(hour=9, minute=5, second=0, microsecond=0)
@@ -336,24 +341,31 @@ if __name__ == '__main__':
             t_exit = t_now.replace(hour=15, minute=20, second=0,microsecond=0)
             today = datetime.today().weekday()
             if today == 5 or today == 6:  # 토요일이나 일요일이면 자동 종료
+                print("토일")
                 printlog('Today is', 'Saturday.' if today == 5 else 'Sunday.')
                 sys.exit(0)
             if t_9 < t_now < t_start and soldout == False:
+                print("9")
                 soldout = True
                 sell_all()
-            if t_start < t_now < t_sell :  # AM 09:05 ~ PM 03:15 : 매수
+            if t_start < t_now  :  # AM 09:05 ~ PM 03:15 : 매수
+                print("9.5")
                 for sym in symbol_list:
                     if len(bought_list) < target_buy_count:
                         buy_etf(sym)
                         time.sleep(1)
-                if t_now.minute == 30 and 0 <= t_now.second <= 5:
+                if t_now.minute%30==0:
                     get_stock_balance('ALL')
+                    dbgout('\n고려중인 주식들('+ str(len(list(set(consider_list)))) +')\n' + str(list(set(consider_list))))       # consider
+                    consider_list = []          # consider
                     time.sleep(5)
             if t_sell < t_now < t_exit:  # PM 03:15 ~ PM 03:20 : 일괄 매도
+                print("3.15")
                 if sell_all() == True:
                     dbgout('`sell_all() returned True -> self-destructed!`')
                     sys.exit(0)
             if t_exit < t_now:  # PM 03:20 ~ :프로그램 종료
+                print("3.20")
                 dbgout('`self-destructed!`')
                 sys.exit(0)
             time.sleep(3)

@@ -44,14 +44,14 @@ def get_top_etf(qty,qty2):
             stockKind = objCodeMgr.GetStockSectionKind(code)
             if  stockKind == 10 or stockKind == 12 :
                 ETFList.append(code)
-        set1 = set(df_list)
-        set2 = set(ETFList)
-        etfTopList = set2 & set1
-        etfTopList = list(etfTopList)
+        etfTopList = [x for x in df_list if x not in ([x for x in (df_list+ETFList) if x not in ETFList])]
+        # condition = (df.code == etfTopList[0])
+        # print(df[condition].code)
+        # print(df[condition].종목명)
         return etfTopList
     except Exception as ex:
         print('get_top_volume(qty) -> 에러 발생! ' + str(ex))
         return None
 
 
-print(get_top_etf(1000,1000))
+print(get_top_etf(300,300))
